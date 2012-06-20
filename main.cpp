@@ -45,13 +45,16 @@ int main(int argc, char* argv[])
 
 	sf::VideoMode lMode = sf::VideoMode::getDesktopMode();
 
-	sWin.create(lMode, "LAUNCHER", sf::Style::Fullscreen);
+	sWin.create(lMode, "LAUNCHER", sf::Style::None);
 	sWin.setMouseCursorVisible(false);
 
 	sWin.setView(sf::View(	sf::Vector2f(0,0), 
 							sf::Vector2f(lMode.width, lMode.height)));
 
 	sf::Text lTxt;
+	sf::Text lTitle("Choose Your Game");
+	lTitle.setPosition(	lTitle.getGlobalBounds().width * -0.5f,
+						lMode.height * -0.5f);
 
 	while(sWin.isOpen())
 	{
@@ -75,6 +78,27 @@ int main(int argc, char* argv[])
 				else if(e.key.code == sf::Keyboard::Return)
 				{
 					launchGames();
+				}
+				break;
+			case sf::Event::JoystickButtonPressed:
+				if(e.joystickButton.joystickId == 0 && e.joystickButton.button == 5)
+					sWin.close();
+				else if(e.joystickButton.joystickId == 0 && e.joystickButton.button == 0)
+				{
+					launchGames();
+				}
+				break;
+			case sf::Event::JoystickMoved:
+				if(e.joystickMove.joystickId == 0 && e.joystickMove.axis == sf::Joystick::PovX)
+				{
+					if(e.joystickMove.position < 0)
+					{
+						sCurrentIndex = sCurrentIndex - 1 >= 0 ? sCurrentIndex - 1 : sGames.size() - 1;
+					}
+					else if(e.joystickMove.position > 0)
+					{
+						sCurrentIndex = sCurrentIndex + 1 < sGames.size() ? sCurrentIndex + 1 : 0;
+					}
 				}
 				break;
 			case sf::Event::Closed:
@@ -203,6 +227,27 @@ void loadAllGames()
 	}
 }
 
+//-------------------------------------------------------
+
+HWND GetProcessMainWindows (DWORD dwProcessID)
+{
+	HWND hwnd = NULL;
+
+	do 
+	{
+		 hwnd = FindWindowEx (NULL, hwnd, NULL, NULL);
+		 DWORD dwPID = 0;
+		 GetWindowThreadProcessId (hwnd, &dwPID);
+		 if (dwPID == dwProcessID)
+			return hwnd;
+	}
+	while (hwnd != NULL);
+
+	return NULL;
+}
+
+//-------------------------------------------------------
+
 void launchGames()
 {
 	STARTUPINFO info={sizeof(info)};
@@ -212,16 +257,34 @@ void launchGames()
 
 	sWin.setVisible(false);
 
+	sWin.setSize(sf::Vector2u(0,0));
+
+	ShowWindow(sWin.getSystemHandle(), SW_HIDE);
+	ShowWindow(sWin.getSystemHandle(), SW_HIDE);
+	ShowWindow(sWin.getSystemHandle(), SW_HIDE);
+	ShowWindow(sWin.getSystemHandle(), SW_HIDE);
+
+	//sf::sleep(sf::milliseconds(2000));
+
 	std::string lStr = sGames[sCurrentIndex]->workingDir.toAnsiString();
 	SetCurrentDirectory(lStr.c_str());
 
 	if (CreateProcess((sWorkingDir + "/" + sGames[sCurrentIndex]->pathToExecutable).toAnsiString().c_str(), "", NULL, NULL, TRUE, 0, NULL, NULL, &info, &processInfo))
 	{
+		SetForegroundWindow(GetProcessMainWindows(processInfo.dwProcessId));
+		ShowWindow(GetProcessMainWindows(processInfo.dwProcessId), SW_HIDE);
 		::WaitForSingleObject(processInfo.hProcess, INFINITE);
 		CloseHandle(processInfo.hProcess);
 		CloseHandle(processInfo.hThread);
 	}
 
-	sWin.setActive(true);
+	//sf::sleep(sf::milliseconds(2000));
+	sWin.setSize(sf::Vector2u(sf::VideoMode::getDesktopMode().width, sf::VideoMode::getDesktopMode().height));
+
 	sWin.setVisible(true);
+
+	ShowWindow(sWin.getSystemHandle(), SW_SHOW);
+	ShowWindow(sWin.getSystemHandle(), SW_SHOW);
+
+	SetForegroundWindow(sWin.getSystemHandle());
 }
